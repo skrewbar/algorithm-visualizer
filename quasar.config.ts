@@ -75,6 +75,8 @@ export default defineConfig((/* ctx */) => {
           { server: false },
         ],
       ],
+
+      devtool: 'source-map',
     },
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#devserver
