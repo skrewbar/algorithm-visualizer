@@ -1,18 +1,29 @@
 <template>
-  <div ref="editor" style="height: 100%; width: 100%"></div>
+  <div id="editor" style="height: 100%; width: 100%"></div>
+  <q-btn
+    @click="$emit('getText', editor.getValue())"
+    push
+    color="white"
+    text-color="primary"
+    label="Push"
+  />
 </template>
 
 <script setup lang="ts">
 import * as monaco from 'monaco-editor'
-import { useTemplateRef, onMounted } from 'vue'
+import { onMounted } from 'vue'
 
-const editor = useTemplateRef('editor')
+defineEmits(['getText'])
 
-const textModel = defineModel<string>()
+let editor: monaco.editor.IStandaloneCodeEditor
 
 onMounted(() => {
-  monaco.editor.create(editor.value!, {
-    value: textModel.value!,
+  editor = monaco.editor.create(document.getElementById('editor')!, {
+    value: `\
+3
+1 2
+2 3
+3 1`,
   })
 })
 </script>
