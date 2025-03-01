@@ -3,19 +3,28 @@
     <div class="col"><CodeEditor @get-text="makeGraph" /></div>
     <div class="col">
       <v-network-graph :zoom-level="1.5" :nodes="nodes" :edges="edges" :configs="configs" />
+      <q-btn @click="topologicalSort" push color="white" text-color="primary" label="Run" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import CodeEditor from 'src/components/CodeEditor.vue'
+
+import { reactive } from 'vue'
+
 import { VNetworkGraph } from 'v-network-graph'
 import 'v-network-graph/lib/style.css'
-
-import CodeEditor from 'src/components/CodeEditor.vue'
-import { reactive } from 'vue'
 import * as vNG from 'v-network-graph'
 import { ForceLayout } from 'v-network-graph/lib/force-layout'
 import type { ForceNodeDatum, ForceEdgeDatum } from 'v-network-graph/lib/force-layout'
+
+import { toast } from 'vue3-toastify'
+import 'vue3-toastify/dist/index.css'
+
+import Queue from 'src/helpers/Queue'
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const nodes: vNG.Nodes = reactive({
   // node1: { name: 'Node 1' },
@@ -43,12 +52,7 @@ const configs = reactive(
         },
       }),
     },
-    node: {
-      label: {
-        direction: 'center',
-        color: '#fff',
-      },
-    },
+    node: {},
     edge: {
       marker: {
         target: {
@@ -65,13 +69,13 @@ function makeGraph(code: string) {
 
   // nodes 재정의
   const idNums = [...Array(nodeCount)].map((_, i) => i + 1)
-  const newNodes = Object.fromEntries(idNums.map((id) => [`node${id}`, { name: `${id}` }]))
+  const newNodes = Object.fromEntries(idNums.map((id) => [`${id}`, { name: `${id}` }]))
   Object.keys(nodes).forEach((id) => delete nodes[id])
   Object.assign(nodes, newNodes)
 
   // edges 재정의
   const makeEdgeEntry = (id1: number, id2: number) => {
-    return [`edge${id1}-${id2}`, { source: `node${id1}`, target: `node${id2}` }]
+    return [`${id1}-${id2}`, { source: `${id1}`, target: `${id2}` }]
   }
   const edgeEntries = []
   for (let i = 1; i < inputLines.length; i++) {
@@ -85,5 +89,40 @@ function makeGraph(code: string) {
   console.log(code)
   console.log(nodes)
   console.log(edges)
+}
+
+/**
+ * TODO
+ *
+ * 위상정렬 결과 페이지에 띄우기
+ */
+async function topologicalSort() {
+  const nodeCount = Object.keys(nodes).length
+
+  const adj: number[][] = Array.from({ length: nodeCount }).map(() => [])
+  const indegree: number[] = Array(nodeCount).fill(0)
+
+  // 인접리스트 채우기
+  Object.keys(edges).forEach((key: string) => {
+    // NOTE: 인덱스로 쓰기 위해서 u, v에 1 빼는 것 유의
+    const u = Number(edges[key]!.source) - 1
+    const v = Number(edges[key]!.target) - 1
+    adj[u]!.push(v)
+    indegree[v]!++
+  })
+
+  const queue = new Queue<number>()
+  Object.keys(nodes).forEach((key: string) => {
+    const node = Number(key)
+    if (indegree[node] === 0) queue.push(node)
+  })
+
+  while (!queue.empty()) {
+    const now = queue.pop()
+    adj[now]!.forEach((nextNode: number) => {
+      indegree[nextNode]!--
+      if (indegree[nextNode] === 0) queue.push(nextNode)
+    })
+  }
 }
 </script>
