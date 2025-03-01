@@ -29,16 +29,12 @@ class Queue<T> {
     this.length++
   }
 
-  pop(): T | undefined {
-    if (this.head === undefined) {
-      return undefined
-    }
-
-    const ret = this.head.value
-    this.head = this.head.next
+  pop(): T {
+    const ret = this.head!.value
+    this.head = this.head!.next
 
     this.length--
-    return ret
+    return ret!
   }
 
   empty(): boolean {
