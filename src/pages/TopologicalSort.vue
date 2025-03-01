@@ -2,7 +2,31 @@
   <div class="row" style="height: 80vh">
     <div class="col"><CodeEditor @get-text="makeGraph" /></div>
     <div class="col">
-      <v-network-graph :zoom-level="1.5" :nodes="nodes" :edges="edges" :configs="configs" />
+      <v-network-graph :zoom-level="1.5" :nodes="nodes" :edges="edges" :configs="configs">
+        <template
+          #override-node-label="{ nodeId, scale, text, x, y, config, textAnchor, dominantBaseline }"
+        >
+          <text
+            x="0"
+            y="0"
+            :font-size="config.fontSize * scale"
+            :text-anchor="textAnchor"
+            :dominant-baseline="dominantBaseline"
+            :fill="config.color"
+            :transform="`translate(${x} ${y})`"
+            >{{ text }}
+          </text>
+          <text
+            x="0"
+            y="15"
+            :font-size="9 * scale"
+            text-anchor="middle"
+            dominant-baseline="central"
+            fill="#000"
+            >{{ indegree[Number(nodeId) - 1] }}
+          </text>
+        </template>
+      </v-network-graph>
       <q-btn @click="topologicalSort" push color="white" text-color="primary" label="Run" />
     </div>
   </div>
@@ -16,6 +40,7 @@ import { reactive } from 'vue'
 import { VNetworkGraph } from 'v-network-graph'
 import 'v-network-graph/lib/style.css'
 import * as vNG from 'v-network-graph'
+import type { Nodes, Edges } from 'v-network-graph'
 import { ForceLayout } from 'v-network-graph/lib/force-layout'
 import type { ForceNodeDatum, ForceEdgeDatum } from 'v-network-graph/lib/force-layout'
 
@@ -24,15 +49,16 @@ import 'vue3-toastify/dist/index.css'
 
 import Queue from 'src/helpers/Queue'
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-const nodes: vNG.Nodes = reactive({
+const nodes: Nodes = reactive({
   // node1: { name: 'Node 1' },
   // node2: { name: 'Node 2' },
 })
-const edges: vNG.Edges = reactive({
+const edges: Edges = reactive({
   // edge1: { source: 'node1', target: 'node2' },
 })
+const indegree: number[] = reactive([])
 
 const configs = reactive(
   vNG.defineConfigs({
@@ -52,7 +78,9 @@ const configs = reactive(
         },
       }),
     },
-    node: {},
+    node: {
+      label: { direction: 'center', color: '#fff' },
+    },
     edge: {
       marker: {
         target: {
@@ -73,22 +101,26 @@ function makeGraph(code: string) {
   Object.keys(nodes).forEach((id) => delete nodes[id])
   Object.assign(nodes, newNodes)
 
-  // edges 재정의
+  // edges, indegree 재정의
   const makeEdgeEntry = (id1: number, id2: number) => {
     return [`${id1}-${id2}`, { source: `${id1}`, target: `${id2}` }]
   }
   const edgeEntries = []
+  const newIndegree = Array(nodeCount).fill(0)
   for (let i = 1; i < inputLines.length; i++) {
-    const [a, b] = inputLines[i]!.split(' ')!
-    edgeEntries.push(makeEdgeEntry(Number(a), Number(b)))
+    const [a, b] = inputLines[i]!.split(' ')!.map((v) => Number(v)) as [number, number]
+    newIndegree[b - 1]!++
+    edgeEntries.push(makeEdgeEntry(a, b))
   }
   const newEdges = Object.fromEntries(edgeEntries)
   Object.keys(edges).forEach((id) => delete edges[id])
   Object.assign(edges, newEdges)
+  Object.assign(indegree, newIndegree)
 
   console.log(code)
   console.log(nodes)
   console.log(edges)
+  console.log(indegree)
 }
 
 /**
@@ -100,7 +132,6 @@ async function topologicalSort() {
   const nodeCount = Object.keys(nodes).length
 
   const adj: number[][] = Array.from({ length: nodeCount }).map(() => [])
-  const indegree: number[] = Array(nodeCount).fill(0)
 
   // 인접리스트 채우기
   Object.keys(edges).forEach((key: string) => {
@@ -108,12 +139,11 @@ async function topologicalSort() {
     const u = Number(edges[key]!.source) - 1
     const v = Number(edges[key]!.target) - 1
     adj[u]!.push(v)
-    indegree[v]!++
   })
 
   const queue = new Queue<number>()
   Object.keys(nodes).forEach((key: string) => {
-    const node = Number(key)
+    const node = Number(key) - 1
     if (indegree[node] === 0) queue.push(node)
   })
 
