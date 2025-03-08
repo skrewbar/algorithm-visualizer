@@ -19,6 +19,7 @@ class Queue<T> {
     if (this.head === undefined) {
       this.head = new QueueNode(value)
       this.tail = this.head
+      this.length++
       return
     }
 
@@ -40,12 +41,25 @@ class Queue<T> {
   empty(): boolean {
     return this.length === 0
   }
-}
 
-const queue = new Queue<number>()
-for (let i = 0; i < 10; i++) queue.push(i)
-while (!queue.empty()) {
-  console.log(queue.pop())
+  forEach(callback: (val: T) => void) {
+    let pointer = this.head
+    if (pointer === undefined) return
+    while (pointer!.next !== undefined) {
+      callback(pointer.value!)
+      pointer = pointer.next
+    }
+  }
+
+  forEachWithIndex(callback: (val: T, index: number) => void) {
+    let pointer = this.head
+    let index = 0
+    if (pointer === undefined) return
+    while (pointer !== undefined) {
+      callback(pointer.value!, index++)
+      pointer = pointer.next
+    }
+  }
 }
 
 export default Queue
