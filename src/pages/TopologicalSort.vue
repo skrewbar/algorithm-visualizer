@@ -2,7 +2,13 @@
   <div class="row" style="height: 80vh">
     <div class="col"><CodeEditor @get-text="makeGraph" /></div>
     <div class="col">
-      <v-network-graph :zoom-level="1.5" :nodes="nodes" :edges="edges" :configs="configs">
+      <v-network-graph
+        :zoom-level="1.5"
+        :nodes="nodes"
+        :edges="edges"
+        :configs="configs"
+        :layouts="layouts"
+      >
         <template
           #override-node-label="{ nodeId, scale, text, x, y, config, textAnchor, dominantBaseline }"
         >
@@ -40,7 +46,7 @@ import { reactive } from 'vue'
 import { VNetworkGraph } from 'v-network-graph'
 import 'v-network-graph/lib/style.css'
 import * as vNG from 'v-network-graph'
-import type { Nodes, Edges } from 'v-network-graph'
+import type { Nodes, Edges, Layouts } from 'v-network-graph'
 import { ForceLayout } from 'v-network-graph/lib/force-layout'
 import type { ForceNodeDatum, ForceEdgeDatum } from 'v-network-graph/lib/force-layout'
 
@@ -48,6 +54,8 @@ import { toast } from 'vue3-toastify'
 import 'vue3-toastify/dist/index.css'
 
 import Queue from 'src/helpers/Queue'
+
+const nodeGap = 50
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
@@ -59,6 +67,7 @@ const edges: Edges = reactive({
   // edge1: { source: 'node1', target: 'node2' },
 })
 const indegree: number[] = reactive([])
+const layouts: Layouts = reactive({ nodes: {} })
 
 const configs = reactive(
   vNG.defineConfigs({
@@ -71,7 +80,7 @@ const configs = reactive(
           const forceLink = d3.forceLink<ForceNodeDatum, ForceEdgeDatum>(edges).id((d) => d.id)
           return d3
             .forceSimulation(nodes)
-            .force('edge', forceLink.distance(40).strength(0.5))
+            .force('edge', forceLink.distance(20).strength(1))
             .force('charge', d3.forceManyBody().strength(-800))
             .force('center', d3.forceCenter().strength(0.05))
             .alphaMin(0.001)
@@ -101,6 +110,8 @@ function makeGraph(code: string) {
   Object.keys(nodes).forEach((id) => delete nodes[id])
   Object.assign(nodes, newNodes)
 
+  idNums.map((id) => (layouts.nodes[`${id}`] = { x: 0, y: 0, fixed: false }))
+
   // edges, indegree 재정의
   const makeEdgeEntry = (id1: number, id2: number) => {
     return [`${id1}-${id2}`, { source: `${id1}`, target: `${id2}` }]
@@ -116,11 +127,6 @@ function makeGraph(code: string) {
   Object.keys(edges).forEach((id) => delete edges[id])
   Object.assign(edges, newEdges)
   Object.assign(indegree, newIndegree)
-
-  console.log(code)
-  console.log(nodes)
-  console.log(edges)
-  console.log(indegree)
 }
 
 /**
@@ -141,18 +147,50 @@ async function topologicalSort() {
     adj[u]!.push(v)
   })
 
-  const queue = new Queue<number>()
+  let queue = new Queue<number>()
+  let nextQueue = new Queue<number>()
+
+  let x = -40,
+    y = -nodeGap
+
   Object.keys(nodes).forEach((key: string) => {
     const node = Number(key) - 1
     if (indegree[node] === 0) queue.push(node)
   })
 
-  while (!queue.empty()) {
-    const now = queue.pop()
-    adj[now]!.forEach((nextNode: number) => {
-      indegree[nextNode]!--
-      if (indegree[nextNode] === 0) queue.push(nextNode)
+  if (queue.length === 0) y = 0
+  else if (queue.length % 2 === 0) y *= (queue.length - 1) / 2
+  else y *= Math.trunc(nextQueue.length / 2)
+  queue.forEachWithIndex((val, index) => {
+    const nodeNum = (val + 1).toString()
+    layouts.nodes[nodeNum] = { x: x, y: y + index * nodeGap, fixed: true }
+  })
+  x += nodeGap
+
+  do {
+    while (!queue.empty()) {
+      const now = queue.pop()
+      adj[now]!.forEach((nextNode: number) => {
+        indegree[nextNode]!--
+        if (indegree[nextNode] === 0) nextQueue.push(nextNode)
+      })
+    }
+    // nextQueue에 있는 노드들 배열
+    y = -nodeGap
+    if (nextQueue.length === 0) y = 0
+    else if (nextQueue.length % 2 === 0) y *= (nextQueue.length - 1) / 2
+    else y *= Math.trunc(nextQueue.length / 2)
+
+    nextQueue.forEachWithIndex((val, index) => {
+      const nodeNum = (val + 1).toString()
+      layouts.nodes[nodeNum] = { x: x, y: y + index * nodeGap, fixed: true }
     })
-  }
+
+    queue = nextQueue
+    nextQueue = new Queue<number>()
+    x += nodeGap
+  } while (!queue.empty())
+
+  console.log(layouts.nodes)
 }
 </script>
