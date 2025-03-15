@@ -42,6 +42,17 @@ class Queue<T> {
     return this.length === 0
   }
 
+  clear(): void {
+    this.head = undefined
+    this.tail = undefined
+    this.length = 0
+  }
+
+  copy(other: Queue<T>) {
+    this.clear()
+    other.forEach((val) => this.push(val))
+  }
+
   forEach(callback: (val: T) => void) {
     let pointer = this.head
     if (pointer === undefined) return
