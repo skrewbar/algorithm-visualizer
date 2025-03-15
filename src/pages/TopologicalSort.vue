@@ -33,7 +33,13 @@
           </text>
         </template>
       </v-network-graph>
-      <q-btn @click="topologicalSort" push color="white" text-color="primary" label="Run" />
+      <q-btn
+        @click="stepByStepTopologicalSort"
+        push
+        color="white"
+        text-color="primary"
+        label="Next"
+      />
     </div>
   </div>
 </template>
@@ -56,8 +62,6 @@ import 'vue3-toastify/dist/index.css'
 import Queue from 'src/helpers/Queue'
 
 const nodeGap = 50
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 const nodes: Nodes = reactive({
   // node1: { name: 'Node 1' },
@@ -100,6 +104,13 @@ const configs = reactive(
   }),
 )
 
+// 그래프 만들고 위상정렬 세팅
+let adj: number[][]
+
+const queue = new Queue<number>()
+const nextQueue = new Queue<number>()
+
+let x: number, y: number
 function makeGraph(code: string) {
   const inputLines: string[] = code.split('\n')
   const nodeCount = Number(inputLines[0])
@@ -110,7 +121,10 @@ function makeGraph(code: string) {
   Object.keys(nodes).forEach((id) => delete nodes[id])
   Object.assign(nodes, newNodes)
 
-  idNums.map((id) => (layouts.nodes[`${id}`] = { x: 0, y: 0, fixed: false }))
+  // layouts 재정의
+  const newLayouts: Layouts = { nodes: {} }
+  idNums.map((id) => (newLayouts.nodes[`${id}`] = { x: 0, y: 0, fixed: false }))
+  Object.assign(layouts, newLayouts)
 
   // edges, indegree 재정의
   const makeEdgeEntry = (id1: number, id2: number) => {
@@ -127,17 +141,14 @@ function makeGraph(code: string) {
   Object.keys(edges).forEach((id) => delete edges[id])
   Object.assign(edges, newEdges)
   Object.assign(indegree, newIndegree)
-}
 
-/**
- * TODO
- *
- * 위상정렬 결과 페이지에 띄우기
- */
-async function topologicalSort() {
-  const nodeCount = Object.keys(nodes).length
+  // 위상정렬 세팅
+  adj = Array.from({ length: nodeCount }).map(() => [])
+  x = -40
+  y = -nodeGap
 
-  const adj: number[][] = Array.from({ length: nodeCount }).map(() => [])
+  queue.clear()
+  nextQueue.clear()
 
   // 인접리스트 채우기
   Object.keys(edges).forEach((key: string) => {
@@ -146,12 +157,6 @@ async function topologicalSort() {
     const v = Number(edges[key]!.target) - 1
     adj[u]!.push(v)
   })
-
-  let queue = new Queue<number>()
-  let nextQueue = new Queue<number>()
-
-  let x = -40,
-    y = -nodeGap
 
   Object.keys(nodes).forEach((key: string) => {
     const node = Number(key) - 1
@@ -166,31 +171,38 @@ async function topologicalSort() {
     layouts.nodes[nodeNum] = { x: x, y: y + index * nodeGap, fixed: true }
   })
   x += nodeGap
+}
 
-  do {
-    while (!queue.empty()) {
-      const now = queue.pop()
-      adj[now]!.forEach((nextNode: number) => {
-        indegree[nextNode]!--
-        if (indegree[nextNode] === 0) nextQueue.push(nextNode)
+function stepByStepTopologicalSort() {
+  if (queue.empty()) {
+    if (!indegree.every((val) => val === 0))
+      toast('그래프가 사이클을 포함하고 있습니다!', {
+        theme: 'auto',
+        type: 'error',
+        dangerouslyHTMLString: true,
       })
-    }
-    // nextQueue에 있는 노드들 배열
-    y = -nodeGap
-    if (nextQueue.length === 0) y = 0
-    else if (nextQueue.length % 2 === 0) y *= (nextQueue.length - 1) / 2
-    else y *= Math.trunc(nextQueue.length / 2)
+  }
 
-    nextQueue.forEachWithIndex((val, index) => {
-      const nodeNum = (val + 1).toString()
-      layouts.nodes[nodeNum] = { x: x, y: y + index * nodeGap, fixed: true }
+  while (!queue.empty()) {
+    const now = queue.pop()
+    adj[now]!.forEach((nextNode: number) => {
+      indegree[nextNode]!--
+      if (indegree[nextNode] === 0) nextQueue.push(nextNode)
     })
+  }
+  // nextQueue에 있는 노드들 배열
+  y = -nodeGap
+  if (nextQueue.length === 0) y = 0
+  else if (nextQueue.length % 2 === 0) y *= (nextQueue.length - 1) / 2
+  else y *= Math.trunc(nextQueue.length / 2)
 
-    queue = nextQueue
-    nextQueue = new Queue<number>()
-    x += nodeGap
-  } while (!queue.empty())
+  nextQueue.forEachWithIndex((val, index) => {
+    const nodeNum = (val + 1).toString()
+    layouts.nodes[nodeNum] = { x: x, y: y + index * nodeGap, fixed: true }
+  })
 
-  console.log(layouts.nodes)
+  queue.copy(nextQueue)
+  nextQueue.clear()
+  x += nodeGap
 }
 </script>
