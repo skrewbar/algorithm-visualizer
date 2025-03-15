@@ -45,7 +45,7 @@ class Queue<T> {
   forEach(callback: (val: T) => void) {
     let pointer = this.head
     if (pointer === undefined) return
-    while (pointer!.next !== undefined) {
+    while (pointer !== undefined) {
       callback(pointer.value!)
       pointer = pointer.next
     }
