@@ -1,4 +1,11 @@
-class QueueNode<T> {
+export class EmtpyQueueError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'EmptyQueueError'
+  }
+}
+
+export class QueueNode<T> {
   value?: T | undefined
   prev?: QueueNode<T> | undefined
   next?: QueueNode<T> | undefined
@@ -31,6 +38,8 @@ class Queue<T> {
   }
 
   pop(): T {
+    if (this.empty()) throw new EmtpyQueueError('tries to pop from empty queue')
+
     const ret = this.head!.value
     this.head = this.head!.next
 
