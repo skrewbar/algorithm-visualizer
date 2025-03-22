@@ -32,6 +32,11 @@ nav {
   border-bottom: 1px solid;
 
   overflow-x: scroll;
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+nav::-webkit-scrollbar {
+  display: none;
 }
 
 nav a {
