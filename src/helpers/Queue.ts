@@ -37,6 +37,12 @@ class Queue<T> {
     this.length++
   }
 
+  static fromArray<T>(array: T[]) {
+    const ret = new Queue<T>()
+    array.forEach((value) => ret.push(value))
+    return ret
+  }
+
   pop(): T {
     if (this.empty()) throw new EmtpyQueueError('tries to pop from empty queue')
 
