@@ -1,7 +1,7 @@
 <template>
   <div class="row" style="height: 80vh">
-    <div class="col"><CodeEditor @get-text="makeGraph" /></div>
-    <div class="col">
+    <div class="col" style="height: 80vh"><CodeEditor @get-text="makeGraph" /></div>
+    <div class="col" style="height: 80vh">
       <v-network-graph
         :zoom-level="1.5"
         :nodes="nodes"

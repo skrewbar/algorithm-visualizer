@@ -1,5 +1,5 @@
 <template>
-  <div id="editor" style="height: 100%; width: 100%"></div>
+  <div id="editor"></div>
   <q-btn
     @click="$emit('getText', editor.getValue())"
     push
@@ -24,6 +24,14 @@ onMounted(() => {
 1 2
 2 3
 3 1`,
+    automaticLayout: true,
   })
 })
 </script>
+
+<style lang="css" scoped>
+#editor {
+  height: 100%;
+  width: 100%;
+}
+</style>
